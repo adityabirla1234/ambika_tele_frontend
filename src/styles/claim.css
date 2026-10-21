@@ -1,0 +1,5 @@
+/* Claim form: find the product by IMEI or serial number. */
+.findrow { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+@media (max-width: 480px) { .findrow { grid-template-columns: 1fr; } }
+.findrow input[readonly] { background: rgba(12, 74, 79, 0.06); }
+.foundcard { display: grid; gap: 6px; border-left: 5px solid var(--highlight); }

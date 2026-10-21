@@ -127,7 +127,7 @@ function ProductForm({ id, detail }: { id: string | undefined; detail: ProductDe
         <Field label="Model" error={errors.model?.message}>
           <input autoComplete="off" {...register("model")} />
         </Field>
-        <Field label="SKU" hint="Must be unique. Saved in capital letters." error={errors.sku?.message}>
+        <Field label="SKU (IMEI or serial number)" hint="The number customers type to find this product: the phone’s IMEI 1 or the appliance’s serial number. Must be unique. Saved in capital letters." error={errors.sku?.message}>
           <input autoComplete="off" {...register("sku")} />
         </Field>
         <Field label="Lowest eligible price (₹)" error={errors.minPrice?.message}>

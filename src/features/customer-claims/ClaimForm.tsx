@@ -1,13 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Resolver, useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { submitClaim } from "../../api/claims";
 import { ApiRequestError } from "../../api/client";
-import { useProducts } from "../../api/products";
-import { categoryKey, customerCategories } from "../../lib/categories";
-import { ProductPicker } from "./ProductPicker";
+import { PublicProduct, lookupProductByDevice } from "../../api/products";
+import "../../styles/claim.css";
 import { ClaimFormValues, makeClaimSchema, todayIso } from "./claimSchema";
 
 const FIELD_NAMES = [
@@ -17,7 +16,6 @@ const FIELD_NAMES = [
 
 export function ClaimForm() {
   const navigate = useNavigate();
-  const products = useProducts();
   const keyRef = useRef(crypto.randomUUID());
   const isMobileRef = useRef(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -37,18 +35,44 @@ export function ClaimForm() {
     },
   });
 
-  // Step 1 is the type of product (Mobile, TV, ...). Step 2 lists only the products of that type.
-  const [category, setCategory] = useState("");
-  const categories = useMemo(() => customerCategories((products.data ?? []).map((p) => p.category)), [products.data]);
-  const activeCategory = category || (categories.length === 1 ? categories[0] : ""); // one type only: no need to ask
-  const choices = useMemo(
-    () => (products.data ?? []).filter((p) => activeCategory === "" || categoryKey(p.category) === categoryKey(activeCategory)),
-    [products.data, activeCategory],
-  );
-
-  const selected = products.data?.find((p) => String(p.id) === watch("productId"));
-  const isMobile = selected?.category.toLowerCase() === "mobile";
+  // The customer types the IMEI or serial number first. A product's SKU is that number, so the server finds the product.
+  const [found, setFound] = useState<PublicProduct | null>(null);
+  const isMobile = found?.category.toLowerCase() === "mobile";
   isMobileRef.current = isMobile;
+
+  const finder = useMutation({
+    mutationFn: (identifier: string) => lookupProductByDevice(identifier),
+    onSuccess: (product) => {
+      setFound(product);
+      setValue("productId", String(product.id), { shouldDirty: true });
+      clearErrors();
+    },
+    onError: (err) => {
+      setFound(null);
+      setValue("productId", "");
+      setError("deviceIdentifier", {
+        message: err instanceof ApiRequestError ? err.message : "Something went wrong. Please try again.",
+      });
+    },
+  });
+
+  function findProduct() {
+    const typed = watch("deviceIdentifier").trim();
+    if (typed.length < 4) {
+      setError("deviceIdentifier", { message: "Enter the IMEI 1 or the serial number." });
+      return;
+    }
+    clearErrors("deviceIdentifier");
+    finder.mutate(typed);
+  }
+
+  function changeNumber() {
+    setFound(null);
+    setValue("productId", "");
+    setValue("deviceIdentifier", "");
+    clearErrors();
+    finder.reset();
+  }
 
   const mutation = useMutation({
     mutationFn: (v: ClaimFormValues) =>
@@ -90,101 +114,87 @@ export function ClaimForm() {
     mutation.mutate(values);
   });
 
-  if (products.isPending) {
-    return <p className="statuscard" role="status">Loading products. The first visit can take up to a minute.</p>;
-  }
-  if (products.isError) {
-    return (
-      <p className="statuscard" role="alert">
-        {products.error instanceof ApiRequestError ? products.error.message : "Could not load products."}{" "}
-        <button type="button" className="linkbutton" onClick={() => products.refetch()}>Try again</button>
-      </p>
-    );
-  }
-  if (products.data.length === 0) {
-    return <p className="statuscard">No products are open for rewards right now. Please ask our team at Ambika Telecom.</p>;
-  }
-
   return (
     <form onSubmit={onSubmit} noValidate className="claimform">
-      <Field label="Type of product">
-        <select
-          value={activeCategory}
-          onChange={(e) => { setCategory(e.target.value); setValue("productId", ""); clearErrors(); }}
-        >
-          <option value="">Choose the type</option>
-          {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
-      </Field>
-
       <div className="field">
-        <span className="fieldlabel" id="product-label">Product</span>
+        <label className="fieldlabel" htmlFor="device-identifier">IMEI 1 or serial number</label>
         <input type="hidden" {...register("productId")} />
-        <ProductPicker
-          products={choices}
-          value={watch("productId")}
-          showCategory={activeCategory === ""}
-          invalid={!!errors.productId}
-          labelledBy="product-label"
-          onChange={(id) => {
-            setValue("productId", id, { shouldDirty: true });
-            clearErrors();
-            const picked = products.data?.find((p) => String(p.id) === id);
-            if (picked) setCategory(categories.find((c) => categoryKey(c) === categoryKey(picked.category)) ?? picked.category);
-          }}
-        />
-        {errors.productId?.message && <span className="fielderror" role="alert">{errors.productId.message}</span>}
+        <div className="findrow">
+          <input
+            id="device-identifier"
+            inputMode="text"
+            autoComplete="off"
+            placeholder="Type the number printed on your product"
+            readOnly={found !== null}
+            {...register("deviceIdentifier")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") { e.preventDefault(); if (!found) findProduct(); } // Enter finds the product, it does not submit
+            }}
+          />
+          {found === null && (
+            <button type="button" className="primary" disabled={finder.isPending} onClick={findProduct}>
+              {finder.isPending ? "Finding…" : "Find my product"}
+            </button>
+          )}
+        </div>
+        <span className="fieldhint">
+          Phone: dial *#06# and enter the first IMEI number. Other products: the serial number is on the label on the
+          product or on your bill.
+        </span>
+        {finder.isPending && <span className="fieldhint" role="status">The first visit can take up to a minute.</span>}
+        {errors.deviceIdentifier?.message && <span className="fielderror" role="alert">{errors.deviceIdentifier.message}</span>}
       </div>
 
-      <Field label="Purchase price (₹)" error={errors.purchasePrice?.message}>
-        <input inputMode="numeric" autoComplete="off" placeholder="e.g. 24999" {...register("purchasePrice")} />
-      </Field>
+      {found && (
+        <>
+          <div className="statuscard foundcard" role="status">
+            <span className="muted">Your product</span>
+            <strong>{found.brand} {found.model}</strong>
+            <span className="muted">{found.category}</span>
+            <button type="button" className="linkbutton" onClick={changeNumber}>Not your product? Use a different number</button>
+          </div>
 
-      <Field label="Purchase date" error={errors.purchaseDate?.message}>
-        <input type="date" max={todayIso()} {...register("purchaseDate")} />
-      </Field>
+          <Field label="Purchase price (₹)" error={errors.purchasePrice?.message}>
+            <input inputMode="numeric" autoComplete="off" placeholder="e.g. 24999" {...register("purchasePrice")} />
+          </Field>
 
-      <Field
-        label={isMobile ? "Invoice number" : "Invoice number (optional)"}
-        error={errors.invoiceNumber?.message}
-      >
-        <input autoComplete="off" {...register("invoiceNumber")} />
-      </Field>
+          <Field label="Purchase date" error={errors.purchaseDate?.message}>
+            <input type="date" max={todayIso()} {...register("purchaseDate")} />
+          </Field>
 
-      <Field
-        label={isMobile ? "IMEI 1" : "Serial number"}
-        hint={isMobile
-          ? "Dial *#06# on your phone and enter the first IMEI number only."
-          : "Find it on the label on the product or on your bill."}
-        error={errors.deviceIdentifier?.message}
-      >
-        <input inputMode={isMobile ? "numeric" : "text"} autoComplete="off" {...register("deviceIdentifier")} />
-      </Field>
+          <Field
+            label={isMobile ? "Invoice number" : "Invoice number (optional)"}
+            error={errors.invoiceNumber?.message}
+          >
+            <input autoComplete="off" {...register("invoiceNumber")} />
+          </Field>
 
-      <Field label="Your name" error={errors.customerName?.message}>
-        <input autoComplete="name" {...register("customerName")} />
-      </Field>
+          <Field label="Your name" error={errors.customerName?.message}>
+            <input autoComplete="name" {...register("customerName")} />
+          </Field>
 
-      <Field label="Mobile number" error={errors.phone?.message}>
-        <input type="tel" inputMode="tel" autoComplete="tel" placeholder="10-digit number" {...register("phone")} />
-      </Field>
+          <Field label="Mobile number" error={errors.phone?.message}>
+            <input type="tel" inputMode="tel" autoComplete="tel" placeholder="10-digit number" {...register("phone")} />
+          </Field>
 
-      <div className="field">
-        <label className="checkrow">
-          <input type="checkbox" {...register("consent")} />
-          <span>
-            I confirm these details are correct and agree that Ambika Telecom may use them to check my purchase and
-            contact me about this reward.
-          </span>
-        </label>
-        {errors.consent?.message && <p className="fielderror" role="alert">{errors.consent.message}</p>}
-      </div>
+          <div className="field">
+            <label className="checkrow">
+              <input type="checkbox" {...register("consent")} />
+              <span>
+                I confirm these details are correct and agree that Ambika Telecom may use them to check my purchase and
+                contact me about this reward.
+              </span>
+            </label>
+            {errors.consent?.message && <p className="fielderror" role="alert">{errors.consent.message}</p>}
+          </div>
 
-      {notice && <div className="notice" role="alert">{notice}</div>}
+          {notice && <div className="notice" role="alert">{notice}</div>}
 
-      <button type="submit" className="primary" disabled={mutation.isPending}>
-        {mutation.isPending ? "Submitting…" : "Submit claim"}
-      </button>
+          <button type="submit" className="primary" disabled={mutation.isPending}>
+            {mutation.isPending ? "Submitting…" : "Submit claim"}
+          </button>
+        </>
+      )}
     </form>
   );
 }

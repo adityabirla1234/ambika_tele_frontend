@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { apiGet } from "./client";
+import { apiGet, apiPost } from "./client";
 
 export interface PublicProduct {
   id: number;
@@ -15,4 +15,9 @@ export function useProducts() {
     retry: 3,
     retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
   });
+}
+
+/** The customer types the IMEI or serial number and gets the product it belongs to. */
+export function lookupProductByDevice(deviceIdentifier: string) {
+  return apiPost<PublicProduct>("/api/public/products/lookup", { deviceIdentifier });
 }

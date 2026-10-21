@@ -10,7 +10,7 @@ import { homeFor, useAuth } from "../auth/AuthContext";
 // Convenience checks only. The server applies the full rules (including a list of too-easy passwords).
 const schema = z.object({
   currentPassword: z.string().min(1, "Enter your current password."),
-  newPassword: z.string().min(12, "Use at least 12 characters."),
+  newPassword: z.string().min(6, "Use at least 12 characters."),
   confirm: z.string(),
 }).refine((v) => v.newPassword === v.confirm, { path: ["confirm"], message: "The two new passwords do not match." });
 type Values = z.infer<typeof schema>;
