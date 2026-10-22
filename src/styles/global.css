@@ -155,10 +155,12 @@ input[inputmode="decimal"] { min-height: 48px; }
   display: flex; justify-content: space-between; gap: 12px; padding: 14px 16px; text-decoration: none; color: inherit;
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
 }
-.claimrow-main, .claimrow-side { display: grid; gap: 2px; align-content: start; min-width: 0; overflow-wrap: anywhere; }
+.claimrow-main, .claimrow-side { display: grid; gap: 2px; align-content: start; min-width: 0; }
+.claimrow-main { overflow-wrap: anywhere; }
+.claimrow-side { flex-shrink: 0; }
 .claimrow-side { justify-items: end; font-weight: 700; }
 
-.badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.8rem; font-weight: 800; }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 800; white-space: nowrap; letter-spacing: 0.01em; }
 .badge-PENDING_REVIEW { background: #fff1c2; color: #5a4300; }
 .badge-APPROVED { background: #d5f1df; color: #0f5a2c; }
 .badge-REJECTED { background: #fbdcd9; color: #7a1710; }

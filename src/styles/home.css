@@ -2,9 +2,16 @@
 
 .content.content-home { max-width: none; padding: 0; }
 .brandbar.brandbar-home { padding-left: max(16px, calc((100vw - 1040px) / 2 + 20px)); } /* logo lines up with the hero text */
+/* Home: the top bar is its own darker strip with a clear edge, so it never blends into the hero below. */
+.brandbar.brandbar-home {
+  position: relative; z-index: 1;
+  background: #072b2e;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+}
 .home-inner { max-width: 1040px; margin: 0 auto; padding: 0 20px; }
 
-/* ---- hero: continues the brand bar so the top of the page reads as one block ---- */
+/* ---- hero: a separate block below the top bar ---- */
 .home-hero { position: relative; overflow: hidden; background: var(--brand); color: #fff; }
 .home-hero .home-inner {
   position: relative; display: grid; gap: 40px; padding-top: 24px; padding-bottom: 56px;
