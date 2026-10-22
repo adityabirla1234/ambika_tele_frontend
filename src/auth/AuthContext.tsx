@@ -63,11 +63,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    try {
-      await logoutRequest();
-    } catch {
-      /* even if the server cannot be reached, this browser forgets the token */
-    }
+    // Sign out on screen at once. The request reads the token synchronously when it starts, so it is safe to
+    // forget the token right after; the server revokes the session in the background (a slow or failed request
+    // must not keep the person waiting, and this browser forgets the token either way).
+    logoutRequest().catch(() => {});
     clearAuthToken();
     setSessionEnded(false);
     setState({ status: "anonymous" });
