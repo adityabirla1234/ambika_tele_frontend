@@ -56,7 +56,7 @@ export function AdminHome() {
           type="search"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Search reference, name, phone or invoice"
+          placeholder="Reference, name, phone"
           aria-label="Search claims"
         />
         <button type="submit" className="primary">Search</button>

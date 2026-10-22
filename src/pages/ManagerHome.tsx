@@ -60,7 +60,7 @@ export function ManagerHome() {
           type="search"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Search brand, model or SKU"
+          placeholder="Brand, model or SKU"
           aria-label="Search products"
         />
         <button type="submit" className="primary">Search</button>
